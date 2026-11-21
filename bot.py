@@ -37,7 +37,7 @@ BOT_TOKEN = (
     os.getenv("BOT_TOKEN")
     or "8952746230:AAG54d6765BiySuKBc11VUbYv2FDq10TJ7E"
 ).strip()
-ADMIN_ID = int(os.getenv("ADMIN_ID", "8853901359"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "6632236983"))
 PORT = int(os.getenv("PORT", "10000"))
 
 RENDER_EXTERNAL_URL = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
