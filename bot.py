@@ -67,8 +67,8 @@ PRICES = [150, 180, 199, 249, 299]
 
 DEFAULT_SLOTS = [
     {
-        "num_label": "1st",
-        "badge": "⚫",
+        "num_label": "",
+        "badge": "",
         "style": "primary",
         "button_name": "1st • Black Pack",
         "text": "1st slot special drop. Tap payment below to scan QR & confirm.",
@@ -76,8 +76,8 @@ DEFAULT_SLOTS = [
         "qr": "",
     },
     {
-        "num_label": "2nd",
-        "badge": "🟠",
+        "num_label": "",
+        "badge": "",
         "style": "danger",
         "button_name": "2nd • Orange Pack",
         "text": "2nd slot instant drop. Scan QR code after clicking payment.",
@@ -86,7 +86,7 @@ DEFAULT_SLOTS = [
     },
     {
         "num_label": "3rd",
-        "badge": "🟢",
+        "badge": "",
         "style": "success",
         "button_name": "3rd • Green Pack",
         "text": "3rd slot premium pack. Complete QR payment & check status.",
@@ -94,8 +94,8 @@ DEFAULT_SLOTS = [
         "qr": "",
     },
     {
-        "num_label": "4th",
-        "badge": "🔵",
+        "num_label": "",
+        "badge": "",
         "style": "primary",
         "button_name": "4th • Blue Pack",
         "text": "4th slot featured drop. Fast admin verification available.",
@@ -103,8 +103,8 @@ DEFAULT_SLOTS = [
         "qr": "",
     },
     {
-        "num_label": "5th",
-        "badge": "🟠",
+        "num_label": "",
+        "badge": "",
         "style": "danger",
         "button_name": "5th • Yellow/Purple Pack",
         "text": "5th slot combo drop. Tap payment to get QR code.",
