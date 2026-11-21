@@ -29,37 +29,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8533526106:AAGQ75XFB9g6DbwER_tiZi8_AmiuX-8w7Uo"
+BOT_TOKEN = "8991320152:AAFu1Vc5FDKI_YI983V_uzXFT7VXoqxtU2g"
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 PORT = int(os.getenv("PORT", "10000"))
 
 USERS_FILE = "users.json"
+THEME_DIR = "theme"
 
-# 3 Free Photos (jab /pack command chale to ek saath 3 photos jayengi)
-FREE_PACK_PHOTOS = [
-    "https://picsum.photos/id/1015/800/600",
-    "https://picsum.photos/id/1025/800/600",
-    "https://picsum.photos/id/1035/800/600",
+BUTTON_STYLES = ["primary", "danger", "success"]
+
+# theme/ folder ke andar jo photos rahengi unke naam yahan dalenge
+FREE_PACK_FILES: list[str] = [
+    # "photo1.jpg",
+    # "photo2.jpg",
+    # "photo3.jpg",
 ]
 
-# Button click karne par random photos + text
-RANDOM_GALLERY = [
-    (
-        "https://picsum.photos/id/1043/800/600",
-        "✨ <b>Random Photo #1</b>\nYeh aapka selected random preview aur text hai.",
-    ),
-    (
-        "https://picsum.photos/id/1050/800/600",
-        "🔥 <b>Random Photo #2</b>\nNaya random image aur text neeche show ho raha hai.",
-    ),
-    (
-        "https://picsum.photos/id/1060/800/600",
-        "⚡ <b>Random Photo #3</b>\nHar click par naya random result milta hai.",
-    ),
-    (
-        "https://picsum.photos/id/1074/800/600",
-        "🌟 <b>Random Photo #4</b>\nPremium pack ke liye neeche Payment button use karein.",
-    ),
+RANDOM_PACK_ITEMS: list[tuple[str, str]] = [
+    # ("rand1.jpg", "✨ <b>Random Photo #1</b>\nYeh aapka random preview text hai."),
+    # ("rand2.jpg", "🔥 <b>Random Photo #2</b>\nNaya random image aur text yahan hai."),
+    # ("rand3.jpg", "⚡ <b>Random Photo #3</b>\nHar click par naya random result."),
 ]
 
 
@@ -114,6 +103,10 @@ def is_admin(user_id: int) -> bool:
     return ADMIN_ID != 0 and user_id == ADMIN_ID
 
 
+def get_theme_path(filename: str) -> str:
+    return os.path.join(THEME_DIR, filename)
+
+
 def build_welcome_caption(mention: str, username: str, chat_id: int) -> str:
     return (
         f"𝙃𝙚𝙮  {mention} 𝙬𝙚𝙡𝙘𝙤𝙢𝙚 𝙆𝙪𝙨𝙝𝙖𝙡 𝙙𝙖𝙩𝙖\n\n"
@@ -139,26 +132,39 @@ def build_contact_admin_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_pack_keyboard() -> InlineKeyboardMarkup:
-    # 6 buttons (5-7 ke beech) + 1 Payment button (alag-alag color styles & badges)
-    keyboard = [
-        [
-            InlineKeyboardButton("🔵 Option 1", callback_data="rand_1", style="primary"),
-            InlineKeyboardButton("🟠 Option 2", callback_data="rand_2", style="danger"),
-        ],
-        [
-            InlineKeyboardButton("🩷 Option 3", callback_data="rand_3", style="success"),
-            InlineKeyboardButton("🔴 Option 4", callback_data="rand_4", style="danger"),
-        ],
-        [
-            InlineKeyboardButton("⚫ Option 5", callback_data="rand_5", style="primary"),
-            InlineKeyboardButton("⚪ Option 6", callback_data="rand_6", style="success"),
-        ],
-        [
-            InlineKeyboardButton("💳 Payment System", callback_data="pay_now", style="success"),
-        ],
+def build_random_colored_keyboard() -> InlineKeyboardMarkup:
+    # 6 buttons + 1 Payment button — har button ka color random
+    labels = [
+        ("Button 1", "rand_1"),
+        ("Button 2", "rand_2"),
+        ("Button 3", "rand_3"),
+        ("Button 4", "rand_4"),
+        ("Button 5", "rand_5"),
+        ("Button 6", "rand_6"),
     ]
-    return InlineKeyboardMarkup(keyboard)
+    rows: list[list[InlineKeyboardButton]] = []
+    for i in range(0, len(labels), 2):
+        row: list[InlineKeyboardButton] = []
+        for text, cb in labels[i : i + 2]:
+            row.append(
+                InlineKeyboardButton(
+                    text,
+                    callback_data=cb,
+                    style=random.choice(BUTTON_STYLES),
+                )
+            )
+        rows.append(row)
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                "Payment",
+                callback_data="pay_now",
+                style=random.choice(BUTTON_STYLES),
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(rows)
 
 
 async def get_user_photo_id(
@@ -215,22 +221,32 @@ async def pack_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     save_user(update.effective_user.id)
 
-    # 1. Ek saath 3 free photos bhejna
-    media_group = [
-        InputMediaPhoto(media=photo_url) for photo_url in FREE_PACK_PHOTOS[:3]
+    # theme/ folder se 3 photos bhejna (agar set hain aur file exist karti hai)
+    valid_files = [
+        get_theme_path(f)
+        for f in FREE_PACK_FILES[:3]
+        if os.path.isfile(get_theme_path(f))
     ]
-    await update.message.reply_media_group(media=media_group)
 
-    # 2. Neeche text + 6 random buttons + Payment button
-    pack_text = (
-        "🎁 <b>3 Free Photos Sent!</b>\n\n"
-        "Kisi bhi button par tap karein to <b>random photo</b> aur neeche text milega.\n"
-        "Full access / payment ke liye neeche <b>Payment System</b> button dabayein."
-    )
+    if valid_files:
+        opened_files = [open(path, "rb") for path in valid_files]
+        try:
+            media_group = [InputMediaPhoto(media=fp) for fp in opened_files]
+            await update.message.reply_media_group(media=media_group)
+        finally:
+            for fp in opened_files:
+                fp.close()
+    else:
+        await update.message.reply_text(
+            "📁 <b>theme/</b> folder mein abhi free pack photos set nahi hain. "
+            "Photo ke naam batate hi yahan set kar diye jayenge.",
+            parse_mode="HTML",
+        )
+
     await update.message.reply_text(
-        text=pack_text,
+        "👇 Neeche buttons par tap karein:",
         parse_mode="HTML",
-        reply_markup=build_pack_keyboard(),
+        reply_markup=build_random_colored_keyboard(),
     )
 
 
@@ -388,19 +404,31 @@ async def on_button_click(
         )
 
     elif data.startswith("rand_"):
-        photo_url, rand_text = random.choice(RANDOM_GALLERY)
-        await query.message.reply_photo(
-            photo=photo_url,
-            caption=rand_text,
-            parse_mode="HTML",
-        )
+        available_items = [
+            (get_theme_path(fname), cap)
+            for fname, cap in RANDOM_PACK_ITEMS
+            if os.path.isfile(get_theme_path(fname))
+        ]
+        if available_items:
+            photo_path, caption_text = random.choice(available_items)
+            with open(photo_path, "rb") as fp:
+                await query.message.reply_photo(
+                    photo=fp,
+                    caption=caption_text,
+                    parse_mode="HTML",
+                )
+        else:
+            await query.message.reply_text(
+                "🎲 Random photo ke liye <b>theme/</b> folder ki photo names set karein.",
+                parse_mode="HTML",
+            )
 
     elif data == "pay_now":
         uid = query.from_user.id if query.from_user else 0
         await query.message.reply_text(
-            f"💳 <b>Payment System</b>\n\n"
+            f"💳 <b>Payment</b>\n\n"
             f"🆔 <b>Aapki ID:</b> <code>{uid}</code>\n"
-            f"Payment complete karne ke baad apni screenshot ya details /complaint se Admin ko bhejein.",
+            f"Payment ke baad details /complaint se Admin ko bhejein.",
             parse_mode="HTML",
         )
 
@@ -412,7 +440,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 async def post_init(application: Application) -> None:
     user_commands = [
         BotCommand("start", "Start bot & welcome"),
-        BotCommand("pack", "Get 3 free photos & random buttons"),
+        BotCommand("pack", "Get photos & random buttons"),
         BotCommand("id", "Get your Player Chat ID"),
         BotCommand("complaint", "Submit a complaint"),
     ]
