@@ -27,7 +27,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = (
-    os.getenv("BOT_TOKEN") or "8952746230:AAG54d6765BiySuKBc11VUbYv2FDq10TJ7E"
+    os.getenv("BOT_TOKEN")
+    or "8952746230:AAG54d6765BiySuKBc11VUbYv2FDq10TJ7E"
 ).strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 PORT = int(os.getenv("PORT", "10000"))
@@ -37,7 +38,7 @@ UPI_ID = (os.getenv("UPI_ID") or "").strip()
 UPI_NAME = (os.getenv("UPI_NAME") or "Kushal Store").strip()
 QR_CODE_URL = (os.getenv("QR_CODE_URL") or "").strip()
 
-# GitHub repo jajffkaudh-hue/Kushal96 -> Video/ folder ki nayi photos
+# GitHub repo jajffkaudh-hue/Kushal96 -> Video/ folder ki photos
 RAW_BASE = "https://raw.githubusercontent.com/jajffkaudh-hue/Kushal96/main/Video"
 
 PHOTO_FILES = [
@@ -62,13 +63,13 @@ ITEM_TEXTS = [
     "Clean item card with price details and fast payment verification.",
 ]
 
-# 5 buttons with distinct color badges & styles
+# 5 buttons with distinct color badges
 FIVE_COLOR_BUTTONS = [
-    ("⚫ Black Option", "cat_0", "secondary"),
-    ("🔵 Blue Option", "cat_1", "primary"),
-    ("🟠 Orange Option", "cat_2", "danger"),
-    ("🟢 Green Option", "cat_3", "success"),
-    ("🟡 Yellow / Purple", "cat_4", "primary"),
+    ("⚫ Black Option", "cat_0"),
+    ("🔵 Blue Option", "cat_1"),
+    ("🟠 Orange Option", "cat_2"),
+    ("🟢 Green Option", "cat_3"),
+    ("🟡 Yellow / 🟣 Purple", "cat_4"),
 ]
 
 
@@ -117,17 +118,10 @@ def build_qr_image_url(amount: int, order_id: str) -> str:
 
 
 def build_five_buttons_keyboard() -> InlineKeyboardMarkup:
-    rows = []
-    for label, cb_data, btn_style in FIVE_COLOR_BUTTONS:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=label,
-                    callback_data=cb_data,
-                    style=btn_style,
-                )
-            ]
-        )
+    rows = [
+        [InlineKeyboardButton(text=label, callback_data=cb_data)]
+        for label, cb_data in FIVE_COLOR_BUTTONS
+    ]
     return InlineKeyboardMarkup(rows)
 
 
@@ -138,7 +132,6 @@ def build_item_payment_keyboard(slot_index: int, price: int) -> InlineKeyboardMa
                 InlineKeyboardButton(
                     text=f"💳 Payment ₹{price}",
                     callback_data=f"pay_item:{slot_index}",
-                    style="success",
                 )
             ]
         ]
@@ -149,15 +142,9 @@ def build_qr_action_keyboard(order_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
+                InlineKeyboardButton(text="🔙 Back", callback_data="go_back"),
                 InlineKeyboardButton(
-                    text="🔙 Back",
-                    callback_data="go_back",
-                    style="secondary",
-                ),
-                InlineKeyboardButton(
-                    text="✅ Check Payment",
-                    callback_data=f"check_pay:{order_id}",
-                    style="success",
+                    text="✅ Check Payment", callback_data=f"check_pay:{order_id}"
                 ),
             ]
         ]
@@ -266,7 +253,6 @@ async def on_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     caller = query.from_user
     chat_id = query.message.chat.id
 
-    # Purane message ke buttons clear karein
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
@@ -407,7 +393,6 @@ async def on_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         InlineKeyboardButton(
                             text="🔙 Back",
                             callback_data="go_back",
-                            style="primary",
                         )
                     ]
                 ]
@@ -433,11 +418,8 @@ def main() -> None:
 
     start_health_server(PORT)
 
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
