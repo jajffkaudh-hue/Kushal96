@@ -29,7 +29,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8991320152:AAFu1Vc5FDKI_YI983V_uzXFT7VXoqxtU2g"
+# Render Environment Variable BOT_TOKEN ko priority dega; nahi mila to fallback lega
+BOT_TOKEN = (
+    os.getenv("BOT_TOKEN") or "8533526106:AAGQ75XFB9g6DbwER_tiZi8_AmiuX-8w7Uo"
+).strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 PORT = int(os.getenv("PORT", "10000"))
 
@@ -38,18 +41,8 @@ THEME_DIR = "theme"
 
 BUTTON_STYLES = ["primary", "danger", "success"]
 
-# theme/ folder ke andar jo photos rahengi unke naam yahan dalenge
-FREE_PACK_FILES: list[str] = [
-    # "photo1.jpg",
-    # "photo2.jpg",
-    # "photo3.jpg",
-]
-
-RANDOM_PACK_ITEMS: list[tuple[str, str]] = [
-    # ("rand1.jpg", "✨ <b>Random Photo #1</b>\nYeh aapka random preview text hai."),
-    # ("rand2.jpg", "🔥 <b>Random Photo #2</b>\nNaya random image aur text yahan hai."),
-    # ("rand3.jpg", "⚡ <b>Random Photo #3</b>\nHar click par naya random result."),
-]
+FREE_PACK_FILES: list[str] = []
+RANDOM_PACK_ITEMS: list[tuple[str, str]] = []
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -133,7 +126,6 @@ def build_contact_admin_keyboard() -> InlineKeyboardMarkup:
 
 
 def build_random_colored_keyboard() -> InlineKeyboardMarkup:
-    # 6 buttons + 1 Payment button — har button ka color random
     labels = [
         ("Button 1", "rand_1"),
         ("Button 2", "rand_2"),
@@ -199,14 +191,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply_markup = build_contact_admin_keyboard()
     photo_id = await get_user_photo_id(context, user.id)
 
+    photo_sent = False
     if photo_id:
-        await update.message.reply_photo(
-            photo=photo_id,
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-        )
-    else:
+        try:
+            await update.message.reply_photo(
+                photo=photo_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+            )
+            photo_sent = True
+        except Exception as e:
+            logger.warning(f"reply_photo failed, falling back to text+button: {e}")
+
+    # Agar photo na aaye ya photo bhejne mein error aaye, tab bhi text + button zaroor bhejna hai
+    if not photo_sent:
         await update.message.reply_text(
             text=caption,
             parse_mode="HTML",
@@ -221,7 +220,6 @@ async def pack_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     save_user(update.effective_user.id)
 
-    # theme/ folder se 3 photos bhejna (agar set hain aur file exist karti hai)
     valid_files = [
         get_theme_path(f)
         for f in FREE_PACK_FILES[:3]
@@ -233,13 +231,14 @@ async def pack_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         try:
             media_group = [InputMediaPhoto(media=fp) for fp in opened_files]
             await update.message.reply_media_group(media=media_group)
+        except Exception as e:
+            logger.warning(f"Media group failed: {e}")
         finally:
             for fp in opened_files:
                 fp.close()
     else:
         await update.message.reply_text(
-            "📁 <b>theme/</b> folder mein abhi free pack photos set nahi hain. "
-            "Photo ke naam batate hi yahan set kar diye jayenge.",
+            "📁 <b>theme/</b> folder mein abhi free pack photos set nahi hain.",
             parse_mode="HTML",
         )
 
@@ -460,6 +459,9 @@ async def post_init(application: Application) -> None:
 
 
 def main() -> None:
+    if not BOT_TOKEN:
+        raise ValueError("BOT_TOKEN missing hai!")
+
     start_health_server(PORT)
 
     try:
