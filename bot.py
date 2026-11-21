@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = (
-    os.getenv("BOT_TOKEN") or "8533526106:AAGQ75XFB9g6DbwER_tiZi8_AmiuX-8w7Uo"
+    os.getenv("BOT_TOKEN") or "8635335052:AAHKw190Qhft0s4eTwmimwVZjgkueiysyeI"
 ).strip()
 PORT = int(os.getenv("PORT", "10000"))
 
