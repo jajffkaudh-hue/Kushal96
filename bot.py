@@ -29,7 +29,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Render Environment Variable BOT_TOKEN ko priority dega; nahi mila to fallback lega
 BOT_TOKEN = (
     os.getenv("BOT_TOKEN") or "8533526106:AAGQ75XFB9g6DbwER_tiZi8_AmiuX-8w7Uo"
 ).strip()
@@ -40,6 +39,7 @@ USERS_FILE = "users.json"
 THEME_DIR = "theme"
 
 BUTTON_STYLES = ["primary", "danger", "success"]
+COLOR_BADGES = ["🔵", "🔴", "🟠", "🟢", "🟡"]
 
 FREE_PACK_FILES: list[str] = []
 RANDOM_PACK_ITEMS: list[tuple[str, str]] = []
@@ -100,75 +100,92 @@ def get_theme_path(filename: str) -> str:
     return os.path.join(THEME_DIR, filename)
 
 
-def build_welcome_caption(mention: str, username: str, chat_id: int) -> str:
+def build_welcome_text(mention: str, username: str, chat_id: int) -> str:
     return (
-        f"𝙃𝙚𝙮  {mention} 𝙬𝙚𝙡𝙘𝙤𝙢𝙚 𝙆𝙪𝙨𝙝𝙖𝙡 𝙙𝙖𝙩𝙖\n\n"
-        f"𝙗𝙤𝙩 𝙪𝙨𝙚𝙙 𝙛𝙤𝙧 𝙘𝙝𝙖𝙩 𝙄𝘿 𝙖𝙣𝙮 𝙥𝙧𝙤𝙗𝙡𝙚𝙢 𝙘𝙤𝙣𝙩𝙖𝙘𝙩 𝙖𝙙𝙢𝙞𝙣 𝙩𝙝𝙖𝙣𝙠𝙨\n\n"
-        f"𝙛𝙤𝙧 𝙨𝙪𝙥𝙥𝙤𝙧𝙩\n\n"
+        f"✨ <b>Swagat Hai, {mention}!</b> ✨\n\n"
+        f"Yeh bot aapki <b>Chat ID</b> nikalne aur fast support ke liye banaya gaya hai.\n"
+        f"Kisi bhi sawal ya madad ke liye neeche diye gaye options ka upyog karein.\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 USERNAME: {username}\n"
-        f"🆔 CHAT ID: <code>{chat_id}</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━"
+        f"👤 <b>User:</b> {mention}\n"
+        f"🌐 <b>Username:</b> {username}\n"
+        f"🆔 <b>Chat ID:</b> <code>{chat_id}</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🙏 <i>Hamare saath jude rehne ke liye dhanyawad!</i>"
     )
 
 
-def build_contact_admin_keyboard() -> InlineKeyboardMarkup:
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "Contact Admin",
-                callback_data="contact_admin",
-                style="primary",
-            )
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+def build_random_styled_buttons(items: list[tuple[str, str]]) -> InlineKeyboardMarkup:
+    # Har button ka badge aur style random
+    badges = COLOR_BADGES.copy()
+    random.shuffle(badges)
 
-
-def build_random_colored_keyboard() -> InlineKeyboardMarkup:
-    labels = [
-        ("Button 1", "rand_1"),
-        ("Button 2", "rand_2"),
-        ("Button 3", "rand_3"),
-        ("Button 4", "rand_4"),
-        ("Button 5", "rand_5"),
-        ("Button 6", "rand_6"),
-    ]
     rows: list[list[InlineKeyboardButton]] = []
-    for i in range(0, len(labels), 2):
+    for idx in range(0, len(items), 2):
         row: list[InlineKeyboardButton] = []
-        for text, cb in labels[i : i + 2]:
+        for offset, (label, cb_data) in enumerate(items[idx : idx + 2]):
+            badge = badges[(idx + offset) % len(badges)]
             row.append(
                 InlineKeyboardButton(
-                    text,
-                    callback_data=cb,
+                    f"{badge} {label}",
+                    callback_data=cb_data,
                     style=random.choice(BUTTON_STYLES),
                 )
             )
         rows.append(row)
-
-    rows.append(
-        [
-            InlineKeyboardButton(
-                "Payment",
-                callback_data="pay_now",
-                style=random.choice(BUTTON_STYLES),
-            )
-        ]
-    )
     return InlineKeyboardMarkup(rows)
 
 
-async def get_user_photo_id(
-    context: ContextTypes.DEFAULT_TYPE, user_id: int
-) -> str | None:
-    try:
-        photos = await context.bot.get_user_profile_photos(user_id=user_id, limit=1)
-        if photos.total_count > 0 and photos.photos[0]:
-            return photos.photos[0][-1].file_id
-    except Exception as e:
-        logger.warning(f"Could not fetch profile photo for {user_id}: {e}")
-    return None
+def build_start_keyboard() -> InlineKeyboardMarkup:
+    start_items = [
+        ("Contact Admin", "contact_admin"),
+        ("My Chat ID", "show_id"),
+        ("Random Photo", "rand_1"),
+        ("Free Pack", "open_pack"),
+        ("Complaint", "ask_complaint"),
+        ("Payment", "pay_now"),
+    ]
+    return build_random_styled_buttons(start_items)
+
+
+def build_random_colored_keyboard() -> InlineKeyboardMarkup:
+    pack_items = [
+        ("Option 1", "rand_1"),
+        ("Option 2", "rand_2"),
+        ("Option 3", "rand_3"),
+        ("Option 4", "rand_4"),
+        ("Option 5", "rand_5"),
+        ("Option 6", "rand_6"),
+        ("Payment", "pay_now"),
+    ]
+    return build_random_styled_buttons(pack_items)
+
+
+async def send_pack_content(message, user_id: int) -> None:
+    save_user(user_id)
+
+    valid_files = [
+        get_theme_path(f)
+        for f in FREE_PACK_FILES[:3]
+        if os.path.isfile(get_theme_path(f))
+    ]
+
+    if valid_files:
+        opened_files = [open(path, "rb") for path in valid_files]
+        try:
+            media_group = [InputMediaPhoto(media=fp) for fp in opened_files]
+            await message.reply_media_group(media=media_group)
+        except Exception as e:
+            logger.warning(f"Media group failed: {e}")
+        finally:
+            for fp in opened_files:
+                fp.close()
+
+    await message.reply_text(
+        "🎨 <b>Apna Option Chunein</b>\n\n"
+        "Neeche diye gaye colourful buttons par tap karein:",
+        parse_mode="HTML",
+        reply_markup=build_random_colored_keyboard(),
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -183,70 +200,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     mention = f'<a href="tg://user?id={user.id}">{safe_name}</a>'
     username = f"@{html.escape(user.username)}" if user.username else "Not set"
 
-    caption = build_welcome_caption(
+    welcome_text = build_welcome_text(
         mention=mention,
         username=username,
         chat_id=chat_id,
     )
-    reply_markup = build_contact_admin_keyboard()
-    photo_id = await get_user_photo_id(context, user.id)
 
-    photo_sent = False
-    if photo_id:
-        try:
-            await update.message.reply_photo(
-                photo=photo_id,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-            )
-            photo_sent = True
-        except Exception as e:
-            logger.warning(f"reply_photo failed, falling back to text+button: {e}")
-
-    # Agar photo na aaye ya photo bhejne mein error aaye, tab bhi text + button zaroor bhejna hai
-    if not photo_sent:
-        await update.message.reply_text(
-            text=caption,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-        )
+    # Bina photo ke text + random colored buttons
+    await update.message.reply_text(
+        text=welcome_text,
+        parse_mode="HTML",
+        reply_markup=build_start_keyboard(),
+        disable_web_page_preview=True,
+    )
 
 
 async def pack_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_user:
         return
-
-    save_user(update.effective_user.id)
-
-    valid_files = [
-        get_theme_path(f)
-        for f in FREE_PACK_FILES[:3]
-        if os.path.isfile(get_theme_path(f))
-    ]
-
-    if valid_files:
-        opened_files = [open(path, "rb") for path in valid_files]
-        try:
-            media_group = [InputMediaPhoto(media=fp) for fp in opened_files]
-            await update.message.reply_media_group(media=media_group)
-        except Exception as e:
-            logger.warning(f"Media group failed: {e}")
-        finally:
-            for fp in opened_files:
-                fp.close()
-    else:
-        await update.message.reply_text(
-            "📁 <b>theme/</b> folder mein abhi free pack photos set nahi hain.",
-            parse_mode="HTML",
-        )
-
-    await update.message.reply_text(
-        "👇 Neeche buttons par tap karein:",
-        parse_mode="HTML",
-        reply_markup=build_random_colored_keyboard(),
-    )
+    await send_pack_content(update.message, update.effective_user.id)
 
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -258,7 +230,7 @@ async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     save_user(user.id)
 
     await update.message.reply_text(
-        f"🆔 <b>Aapki Player Chat ID (UID):</b> <code>{chat_id}</code>",
+        f"🆔 <b>Aapki Chat ID:</b> <code>{chat_id}</code>",
         parse_mode="HTML",
     )
 
@@ -304,7 +276,7 @@ async def submit_complaint(
                 text=(
                     f"🚨 <b>New Complaint Received</b>\n\n"
                     f"👤 <b>User:</b> {safe_full_name} ({username_display})\n"
-                    f"🆔 <b>Player Chat ID (UID):</b> <code>{chat_id}</code>\n"
+                    f"🆔 <b>Chat ID:</b> <code>{chat_id}</code>\n"
                     f"💬 <b>Message:</b> {safe_complaint}"
                 ),
                 parse_mode="HTML",
@@ -388,6 +360,7 @@ async def on_button_click(
 
     await query.answer()
     data = query.data or ""
+    caller = query.from_user
 
     if data == "contact_admin":
         if ADMIN_ID != 0:
@@ -399,6 +372,25 @@ async def on_button_click(
             f"📩 <b>Contact Admin</b>\n\n"
             f"Agar aapko koi madad chahiye, to /complaint command se apna message bhejein.\n"
             f"{admin_info}",
+            parse_mode="HTML",
+        )
+
+    elif data == "show_id":
+        uid = caller.id if caller else 0
+        await query.message.reply_text(
+            f"🆔 <b>Aapki Chat ID:</b> <code>{uid}</code>",
+            parse_mode="HTML",
+        )
+
+    elif data == "open_pack":
+        if caller:
+            await send_pack_content(query.message, caller.id)
+
+    elif data == "ask_complaint":
+        context.user_data["awaiting_complaint"] = True
+        await query.message.reply_text(
+            "📝 <b>Complaint System</b>\n\n"
+            "Kripya apni complaint likh kar bhejein. Aapka message seedha Admin ko bhej diya jayega.",
             parse_mode="HTML",
         )
 
@@ -423,7 +415,7 @@ async def on_button_click(
             )
 
     elif data == "pay_now":
-        uid = query.from_user.id if query.from_user else 0
+        uid = caller.id if caller else 0
         await query.message.reply_text(
             f"💳 <b>Payment</b>\n\n"
             f"🆔 <b>Aapki ID:</b> <code>{uid}</code>\n"
@@ -439,8 +431,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 async def post_init(application: Application) -> None:
     user_commands = [
         BotCommand("start", "Start bot & welcome"),
-        BotCommand("pack", "Get photos & random buttons"),
-        BotCommand("id", "Get your Player Chat ID"),
+        BotCommand("pack", "Open option buttons"),
+        BotCommand("id", "Get your Chat ID"),
         BotCommand("complaint", "Submit a complaint"),
     ]
     await application.bot.set_my_commands(user_commands)
