@@ -39,7 +39,7 @@ USERS_FILE = "users.json"
 THEME_DIR = "theme"
 
 BUTTON_STYLES = ["primary", "danger", "success"]
-COLOR_BADGES = ["🔵", "🔴", "🟠", "🟢", "🟡"]
+COLOR_BADGES = ["🔵", "🔴", "🟠", "🟢", "🟡", "🟣"]
 
 FREE_PACK_FILES: list[str] = []
 RANDOM_PACK_ITEMS: list[tuple[str, str]] = []
@@ -114,50 +114,59 @@ def build_welcome_text(mention: str, username: str, chat_id: int) -> str:
     )
 
 
-def build_random_styled_buttons(items: list[tuple[str, str]]) -> InlineKeyboardMarkup:
-    # Har button ka badge aur style random
+def build_start_keyboard() -> InlineKeyboardMarkup:
+    # Line by line (ek row mein ek button), bade letters mein FIRST, SECOND, THIRD, FOURTH, FIFTH, SIXTH
+    line_items = [
+        ("FIRST", "contact_admin"),
+        ("SECOND", "show_id"),
+        ("THIRD", "rand_1"),
+        ("FOURTH", "open_pack"),
+        ("FIFTH", "ask_complaint"),
+        ("SIXTH", "pay_now"),
+    ]
     badges = COLOR_BADGES.copy()
     random.shuffle(badges)
 
     rows: list[list[InlineKeyboardButton]] = []
-    for idx in range(0, len(items), 2):
-        row: list[InlineKeyboardButton] = []
-        for offset, (label, cb_data) in enumerate(items[idx : idx + 2]):
-            badge = badges[(idx + offset) % len(badges)]
-            row.append(
+    for idx, (label, cb_data) in enumerate(line_items):
+        badge = badges[idx % len(badges)]
+        rows.append(
+            [
                 InlineKeyboardButton(
                     f"{badge} {label}",
                     callback_data=cb_data,
                     style=random.choice(BUTTON_STYLES),
                 )
-            )
-        rows.append(row)
+            ]
+        )
     return InlineKeyboardMarkup(rows)
-
-
-def build_start_keyboard() -> InlineKeyboardMarkup:
-    start_items = [
-        ("Contact Admin", "contact_admin"),
-        ("My Chat ID", "show_id"),
-        ("Random Photo", "rand_1"),
-        ("Free Pack", "open_pack"),
-        ("Complaint", "ask_complaint"),
-        ("Payment", "pay_now"),
-    ]
-    return build_random_styled_buttons(start_items)
 
 
 def build_random_colored_keyboard() -> InlineKeyboardMarkup:
     pack_items = [
-        ("Option 1", "rand_1"),
-        ("Option 2", "rand_2"),
-        ("Option 3", "rand_3"),
-        ("Option 4", "rand_4"),
-        ("Option 5", "rand_5"),
-        ("Option 6", "rand_6"),
-        ("Payment", "pay_now"),
+        ("FIRST", "rand_1"),
+        ("SECOND", "rand_2"),
+        ("THIRD", "rand_3"),
+        ("FOURTH", "rand_4"),
+        ("FIFTH", "rand_5"),
+        ("SIXTH", "pay_now"),
     ]
-    return build_random_styled_buttons(pack_items)
+    badges = COLOR_BADGES.copy()
+    random.shuffle(badges)
+
+    rows: list[list[InlineKeyboardButton]] = []
+    for idx, (label, cb_data) in enumerate(pack_items):
+        badge = badges[idx % len(badges)]
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    f"{badge} {label}",
+                    callback_data=cb_data,
+                    style=random.choice(BUTTON_STYLES),
+                )
+            ]
+        )
+    return InlineKeyboardMarkup(rows)
 
 
 async def send_pack_content(message, user_id: int) -> None:
@@ -182,7 +191,7 @@ async def send_pack_content(message, user_id: int) -> None:
 
     await message.reply_text(
         "🎨 <b>Apna Option Chunein</b>\n\n"
-        "Neeche diye gaye colourful buttons par tap karein:",
+        "Neeche diye gaye line-by-line buttons par tap karein:",
         parse_mode="HTML",
         reply_markup=build_random_colored_keyboard(),
     )
@@ -206,7 +215,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id=chat_id,
     )
 
-    # Bina photo ke text + random colored buttons
     await update.message.reply_text(
         text=welcome_text,
         parse_mode="HTML",
