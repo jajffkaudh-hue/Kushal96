@@ -29,11 +29,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = (
-    os.getenv("BOT_TOKEN") or "8635335052:AAHKw190Qhft0s4eTwmimwVZjgkueiysyeI"
+    os.getenv("BOT_TOKEN") or "8533526106:AAGQ75XFB9g6DbwER_tiZi8_AmiuX-8w7Uo"
 ).strip()
 PORT = int(os.getenv("PORT", "10000"))
 
-# Render 24/7 self-ping ke liye optional URL (e.g. https://your-service.onrender.com)
+# 24/7 Render self-ping optional URL
 RENDER_EXTERNAL_URL = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
 KEEP_ALIVE_INTERVAL = int(os.getenv("KEEP_ALIVE_INTERVAL", "240"))
 
@@ -41,10 +41,11 @@ KEEP_ALIVE_INTERVAL = int(os.getenv("KEEP_ALIVE_INTERVAL", "240"))
 ALLOWED_CHAT_USERNAME = "kushal_igcc_chats"
 ALLOWED_CHAT_ID = int(os.getenv("ALLOWED_CHAT_ID", "0"))
 
-# Automatic drop interval (seconds mein, default 120s)
-AUTO_DROP_SECONDS = int(os.getenv("AUTO_DROP_SECONDS", "120"))
+# Exact timing: 50 seconds baad drop, 60 seconds (1 minute) baad delete
+DROP_INTERVAL_SECONDS = 50
+DELETE_AFTER_SECONDS = 60
 
-# Dummy / test prefixes & sample metadata only (for UI/testing purposes)
+# Dummy / test sample data only (for UI & testing purposes)
 SAMPLE_BINS = [
     ("453201", "VISA TEST", "India", "Asia/Kolkata", "IN / South Asia"),
     ("541333", "MASTERCARD TEST", "United States", "America/New_York", "US / North America"),
@@ -55,20 +56,20 @@ SAMPLE_BINS = [
 ]
 
 SAMPLE_TEXTS = [
-    "Random anime drop with separated card, expiry, CVV, time, country & zone sections.",
-    "Rotating layout & fresh random anime visual generated for kushal_igcc_chats.",
-    "Tap FIRST for a new random anime photo + card drop or SECOND for text summary.",
-    "Each block is separated cleanly with live timezone & region info.",
+    "Auto drop active every 50s • Auto delete in 60s.",
+    "Random anime girl drop with full separated card & region details.",
+    "Tap FIRST for a fresh card or SECOND for text summary.",
+    "Clean automated group drop running in kushal_igcc_chats.",
 ]
 
-ANIME_API_ENDPOINTS = [
+ANIME_GIRL_APIS = [
     "https://api.waifu.pics/sfw/waifu",
     "https://api.waifu.pics/sfw/neko",
     "https://api.waifu.pics/sfw/shinobu",
     "https://api.waifu.pics/sfw/megumin",
 ]
 
-FALLBACK_ANIME_PHOTOS = [
+FALLBACK_ANIME_GIRL_PHOTOS = [
     "https://i.waifu.pics/S8D0n7-.png",
     "https://i.waifu.pics/r3jQ2c_.png",
     "https://i.waifu.pics/9X7mK2p.jpg",
@@ -78,7 +79,7 @@ FALLBACK_ANIME_PHOTOS = [
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in ("/", "/health"):
-            body = b'{"status":"ok","bot":"24x7-anime-drop-active"}'
+            body = b'{"status":"ok","bot":"24x7-50s-drop-active"}'
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -119,7 +120,7 @@ def start_render_24x7_server(port: int) -> None:
         logger.info(f"24/7 self-ping enabled for {RENDER_EXTERNAL_URL}/health")
 
 
-def is_allowed_chat_id(chat_id: int | None, username: str | None) -> bool:
+def is_allowed_chat(chat_id: int | None, username: str | None) -> bool:
     if ALLOWED_CHAT_ID != 0 and chat_id == ALLOWED_CHAT_ID:
         return True
     if username and username.strip().lstrip("@").lower() == ALLOWED_CHAT_USERNAME:
@@ -131,11 +132,11 @@ def is_allowed_update(update: Update) -> bool:
     chat = update.effective_chat
     if not chat:
         return False
-    return is_allowed_chat_id(chat.id, chat.username)
+    return is_allowed_chat(chat.id, chat.username)
 
 
-def _fetch_random_anime_url_sync() -> str:
-    endpoints = ANIME_API_ENDPOINTS[:]
+def _fetch_anime_girl_url_sync() -> str:
+    endpoints = ANIME_GIRL_APIS[:]
     random.shuffle(endpoints)
     for api_url in endpoints:
         try:
@@ -149,13 +150,13 @@ def _fetch_random_anime_url_sync() -> str:
                 if img_url.startswith("http"):
                     return img_url
         except Exception as e:
-            logger.debug(f"Anime API fetch failed ({api_url}): {e}")
-    return random.choice(FALLBACK_ANIME_PHOTOS)
+            logger.debug(f"Anime girl API failed ({api_url}): {e}")
+    return random.choice(FALLBACK_ANIME_GIRL_PHOTOS)
 
 
-async def get_random_anime_photo_url() -> str:
+async def get_anime_girl_photo_url() -> str:
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _fetch_random_anime_url_sync)
+    return await loop.run_in_executor(None, _fetch_anime_girl_url_sync)
 
 
 def _luhn_check_digit(partial_number: str) -> str:
@@ -171,7 +172,7 @@ def _luhn_check_digit(partial_number: str) -> str:
     return str((10 - (total % 10)) % 10)
 
 
-def generate_random_sample_card() -> dict[str, str]:
+def generate_random_card() -> dict[str, str]:
     prefix, brand, country, tz_name, zone_label = random.choice(SAMPLE_BINS)
     target_len = 15 if brand.startswith("AMEX") else 16
     body_len = target_len - len(prefix) - 1
@@ -204,8 +205,8 @@ def generate_random_sample_card() -> dict[str, str]:
     }
 
 
-def build_card_keyboard() -> InlineKeyboardMarkup:
-    # First = Blue (primary), Second = Orange style/badge
+def build_two_buttons_keyboard() -> InlineKeyboardMarkup:
+    # Donon buttons: First = Blue (primary), Second = Orange style/badge
     keyboard = [
         [
             InlineKeyboardButton(
@@ -223,7 +224,7 @@ def build_card_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def format_varied_card_message(
+def format_card_detail_caption(
     user_mention: str, card: dict[str, str], design_style: int | None = None
 ) -> str:
     style_idx = design_style if design_style is not None else random.randint(0, 2)
@@ -238,155 +239,208 @@ def format_varied_card_message(
 
     if style_idx == 0:
         return (
-            f"💠 <b>ANIME DROP • DESIGN #1</b> 💠\n\n"
-            f"👤 <b>User:</b> {user_mention} | <b>Type:</b> {b_brand}\n\n"
-            f"💳 <b>[CARD SECTION]</b>\n"
+            f"✨ <b>CARD DETAIL • STYLE #1</b> ✨\n\n"
+            f"👤 <b>User:</b> {user_mention} | <b>Brand:</b> {b_brand}\n\n"
+            f"💳 <b>[CARD NUMBER]</b>\n"
             f"<code>{b_num}</code>\n\n"
-            f"📅 <b>[EXPIRY DATE SECTION]</b>\n"
+            f"📅 <b>[EXPIRY DATE]</b>\n"
             f"<code>{b_exp}</code>\n\n"
-            f"🔐 <b>[CVV SECTION]</b>\n"
+            f"🔐 <b>[CVV]</b>\n"
             f"<code>{b_cvv}</code>\n\n"
-            f"🕒 <b>[TIME SECTION]</b>\n"
-            f"<code>{b_time}</code>\n\n"
-            f"🌍 <b>[COUNTRY SECTION]</b>\n"
+            f"🌍 <b>[COUNTRY]</b>\n"
             f"<b>{b_country}</b>\n\n"
-            f"🧭 <b>[ZONE SECTION]</b>\n"
+            f"🧭 <b>[ZONE]</b>\n"
             f"<b>{b_zone}</b>\n\n"
-            f"📝 <b>Text:</b> {b_note}"
+            f"🕒 <b>[TIME]</b>\n"
+            f"<code>{b_time}</code>\n\n"
+            f"📝 <b>Text:</b> {b_note}\n"
+            f"⏳ <i>Auto-deletes in 60s</i>"
         )
     elif style_idx == 1:
         return (
-            f"🔶 <b>ANIME DROP • DESIGN #2</b> 🔶\n"
+            f"🔶 <b>CARD DETAIL • STYLE #2</b> 🔶\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"👤 <b>User:</b> {user_mention} ({b_brand})\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🔹 <b>Card:</b> <code>{b_num}</code>\n"
+            f"🔹 <b>Card Number:</b> <code>{b_num}</code>\n"
             f"🔹 <b>Expiry Date:</b> <code>{b_exp}</code>\n"
             f"🔹 <b>CVV:</b> <code>{b_cvv}</code>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⏰ <b>Time:</b> <code>{b_time}</code>\n"
             f"🏳️ <b>Country:</b> {b_country}\n"
             f"🗺️ <b>Zone:</b> {b_zone}\n"
+            f"⏰ <b>Time:</b> <code>{b_time}</code>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💬 <b>Text:</b> {b_note}"
+            f"💬 <b>Text:</b> {b_note}\n"
+            f"⏳ <i>Auto-deletes in 60s</i>"
         )
     else:
         return (
-            f"⚡ <b>ANIME DROP • DESIGN #3</b> ⚡\n\n"
+            f"⚡ <b>CARD DETAIL • STYLE #3</b> ⚡\n\n"
             f"• <b>User:</b> {user_mention}\n"
-            f"• <b>Brand:</b> {b_brand}\n\n"
+            f"• <b>Card Type:</b> {b_brand}\n\n"
             f"▸ <b>Card:</b> <code>{b_num}</code>\n"
             f"▸ <b>Expiry:</b> <code>{b_exp}</code>\n"
             f"▸ <b>CVV:</b> <code>{b_cvv}</code>\n"
-            f"▸ <b>Time:</b> <code>{b_time}</code>\n"
             f"▸ <b>Country:</b> {b_country}\n"
-            f"▸ <b>Zone:</b> {b_zone}\n\n"
-            f"📌 <b>Text:</b> {b_note}"
+            f"▸ <b>Zone:</b> {b_zone}\n"
+            f"▸ <b>Time:</b> <code>{b_time}</code>\n\n"
+            f"📌 <b>Text:</b> {b_note}\n"
+            f"⏳ <i>Auto-deletes in 60s</i>"
         )
 
 
-def format_second_text_message(user_mention: str, card: dict[str, str]) -> str:
+def format_second_detail_caption(user_mention: str, card: dict[str, str]) -> str:
     return (
-        f"📄 <b>SECOND OPTION — FULL DETAIL</b>\n\n"
+        f"📄 <b>SECOND VIEW — CARD DETAIL</b>\n\n"
         f"👤 <b>User:</b> {user_mention}\n"
-        f"💳 <b>Card:</b> <code>{card['number']}</code>\n"
+        f"💳 <b>Card Number:</b> <code>{card['number']}</code>\n"
         f"📅 <b>Expiry Date:</b> <code>{card['expiry']}</code>\n"
         f"🔐 <b>CVV:</b> <code>{card['cvv']}</code>\n"
-        f"🕒 <b>Time:</b> <code>{card['time']}</code>\n"
         f"🌍 <b>Country:</b> {html.escape(card['country'])}\n"
-        f"🧭 <b>Zone:</b> {html.escape(card['zone'])}\n\n"
-        f"📝 <b>Text:</b> {html.escape(card['note'])}"
+        f"🧭 <b>Zone:</b> {html.escape(card['zone'])}\n"
+        f"🕒 <b>Time:</b> <code>{card['time']}</code>\n\n"
+        f"📝 <b>Text:</b> {html.escape(card['note'])}\n"
+        f"⏳ <i>Auto-deletes in 60s</i>"
     )
 
 
-async def send_anime_card_photo_reply(
-    target_message,
-    context: ContextTypes.DEFAULT_TYPE,
-    user_mention: str,
-    card: dict[str, str],
-    caption_text: str,
+async def delete_message_after_delay(
+    bot, chat_id: int | str, message_id: int, delay: int = DELETE_AFTER_SECONDS
 ) -> None:
-    photo_url = await get_random_anime_photo_url()
-    context.user_data["last_photo_url"] = photo_url
-    markup = build_card_keyboard()
-
+    await asyncio.sleep(delay)
     try:
-        await target_message.reply_photo(
-            photo=photo_url,
-            caption=caption_text,
-            parse_mode="HTML",
-            reply_markup=markup,
-        )
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
     except Exception as e:
-        logger.warning(f"Anime photo reply failed ({photo_url}): {e}")
-        await target_message.reply_text(
-            text=caption_text,
-            parse_mode="HTML",
-            reply_markup=markup,
-            disable_web_page_preview=True,
+        logger.debug(f"Auto-delete skipped for message {message_id}: {e}")
+
+
+def schedule_auto_delete(
+    context: ContextTypes.DEFAULT_TYPE, chat_id: int | str, message_id: int
+) -> None:
+    if context.job_queue:
+        context.job_queue.run_once(
+            _job_delete_message,
+            when=DELETE_AFTER_SECONDS,
+            data={"chat_id": chat_id, "message_id": message_id},
+            name=f"del_{chat_id}_{message_id}",
+        )
+    else:
+        asyncio.create_task(
+            delete_message_after_delay(context.bot, chat_id, message_id, DELETE_AFTER_SECONDS)
         )
 
 
-async def send_card_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.effective_user:
+async def _job_delete_message(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job_data = context.job.data if context.job else None
+    if not isinstance(job_data, dict):
         return
-
-    if not is_allowed_update(update):
-        return
-
-    user = update.effective_user
-    safe_name = html.escape(user.first_name or "User")
-    mention = f'<a href="tg://user?id={user.id}">{safe_name}</a>'
-
-    card = generate_random_sample_card()
-    context.user_data["last_card"] = card
-    prev_design = context.user_data.get("last_design", -1)
-    next_design = (prev_design + 1) % 3
-    context.user_data["last_design"] = next_design
-
-    caption = format_varied_card_message(mention, card, design_style=next_design)
-    await send_anime_card_photo_reply(update.message, context, mention, card, caption)
-
-
-async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
-    target_chat_id: int | str | None = None
-    if ALLOWED_CHAT_ID != 0:
-        target_chat_id = ALLOWED_CHAT_ID
-    else:
+    chat_id = job_data.get("chat_id")
+    message_id = job_data.get("message_id")
+    if chat_id is not None and message_id is not None:
         try:
-            chat = await context.bot.get_chat(f"@{ALLOWED_CHAT_USERNAME}")
-            target_chat_id = chat.id
+            await context.bot.delete_message(chat_id=chat_id, message_id=int(message_id))
         except Exception as e:
-            logger.debug(f"Could not resolve @{ALLOWED_CHAT_USERNAME} yet: {e}")
-            return
+            logger.debug(f"Job auto-delete skipped for {message_id}: {e}")
 
-    card = generate_random_sample_card()
-    design_idx = random.randint(0, 2)
-    auto_mention = f'<a href="https://t.me/{ALLOWED_CHAT_USERNAME}">Auto Drop</a>'
-    caption = format_varied_card_message(auto_mention, card, design_style=design_idx)
-    photo_url = await get_random_anime_photo_url()
-    markup = build_card_keyboard()
 
+async def send_photo_card_and_buttons(
+    bot,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int | str,
+    caption: str,
+) -> None:
+    # Order: Photo (image) -> Card detail (caption) -> Donon buttons (reply_markup)
+    photo_url = await get_anime_girl_photo_url()
+    markup = build_two_buttons_keyboard()
+
+    sent_msg = None
     try:
-        await context.bot.send_photo(
-            chat_id=target_chat_id,
+        sent_msg = await bot.send_photo(
+            chat_id=chat_id,
             photo=photo_url,
             caption=caption,
             parse_mode="HTML",
             reply_markup=markup,
         )
     except Exception as e:
-        logger.warning(f"Auto anime photo drop failed in {ALLOWED_CHAT_USERNAME}: {e}")
-        try:
-            await context.bot.send_message(
-                chat_id=target_chat_id,
-                text=caption,
-                parse_mode="HTML",
-                reply_markup=markup,
-                disable_web_page_preview=True,
-            )
-        except Exception as e2:
-            logger.warning(f"Auto text fallback failed in {ALLOWED_CHAT_USERNAME}: {e2}")
+        logger.warning(f"Anime girl photo send failed ({photo_url}): {e}")
+        sent_msg = await bot.send_message(
+            chat_id=chat_id,
+            text=caption,
+            parse_mode="HTML",
+            reply_markup=markup,
+            disable_web_page_preview=True,
+        )
+
+    if sent_msg:
+        schedule_auto_delete(context, chat_id, sent_msg.message_id)
+
+
+async def resolve_target_group_chat_id(bot) -> int | str | None:
+    if ALLOWED_CHAT_ID != 0:
+        return ALLOWED_CHAT_ID
+    try:
+        chat = await bot.get_chat(f"@{ALLOWED_CHAT_USERNAME}")
+        return chat.id
+    except Exception as e:
+        logger.debug(f"Could not resolve @{ALLOWED_CHAT_USERNAME}: {e}")
+        return None
+
+
+async def auto_drop_loop_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    target_chat_id = await resolve_target_group_chat_id(context.bot)
+    if target_chat_id is None:
+        return
+
+    card = generate_random_card()
+    design_idx = random.randint(0, 2)
+    auto_mention = f'<a href="https://t.me/{ALLOWED_CHAT_USERNAME}">Auto Drop</a>'
+    caption = format_card_detail_caption(auto_mention, card, design_style=design_idx)
+
+    await send_photo_card_and_buttons(context.bot, context, target_chat_id, caption)
+
+
+def ensure_auto_drop_running(context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
+        return
+    existing = context.job_queue.get_jobs_by_name("kushal_igcc_50s_auto_drop")
+    if existing:
+        return
+    context.job_queue.run_repeating(
+        auto_drop_loop_job,
+        interval=DROP_INTERVAL_SECONDS,
+        first=1,
+        name="kushal_igcc_50s_auto_drop",
+    )
+    logger.info(
+        f"Started 50s auto drop & 60s auto delete for @{ALLOWED_CHAT_USERNAME}"
+    )
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.effective_user or not update.effective_chat:
+        return
+
+    if not is_allowed_update(update):
+        return
+
+    # Start dabane par 50s automatic card drop shuru/ensure karein
+    ensure_auto_drop_running(context)
+
+    user = update.effective_user
+    safe_name = html.escape(user.first_name or "User")
+    mention = f'<a href="tg://user?id={user.id}">{safe_name}</a>'
+
+    card = generate_random_card()
+    context.user_data["last_card"] = card
+    prev_design = context.user_data.get("last_design", -1)
+    next_design = (prev_design + 1) % 3
+    context.user_data["last_design"] = next_design
+
+    caption = format_card_detail_caption(mention, card, design_style=next_design)
+    await send_photo_card_and_buttons(
+        context.bot, context, update.effective_chat.id, caption
+    )
 
 
 async def on_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -409,20 +463,24 @@ async def on_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         pass
 
     if query.data == "drop_first":
-        card = generate_random_sample_card()
+        card = generate_random_card()
         context.user_data["last_card"] = card
         prev_design = context.user_data.get("last_design", -1)
         next_design = (prev_design + 1) % 3
         context.user_data["last_design"] = next_design
 
-        caption = format_varied_card_message(mention, card, design_style=next_design)
-        await send_anime_card_photo_reply(query.message, context, mention, card, caption)
+        caption = format_card_detail_caption(mention, card, design_style=next_design)
+        await send_photo_card_and_buttons(
+            context.bot, context, query.message.chat.id, caption
+        )
 
     elif query.data == "drop_second":
-        card = context.user_data.get("last_card") or generate_random_sample_card()
+        card = context.user_data.get("last_card") or generate_random_card()
         context.user_data["last_card"] = card
-        caption = format_second_text_message(mention, card)
-        await send_anime_card_photo_reply(query.message, context, mention, card, caption)
+        caption = format_second_detail_caption(mention, card)
+        await send_photo_card_and_buttons(
+            context.bot, context, query.message.chat.id, caption
+        )
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -432,20 +490,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands(
         [
-            BotCommand("start", "Start anime card drop"),
-            BotCommand("drop", "Drop random anime card now"),
+            BotCommand("start", "Start 50s auto card drop"),
         ]
     )
-
-    if application.job_queue:
+    if application.job_queue and not application.job_queue.get_jobs_by_name(
+        "kushal_igcc_50s_auto_drop"
+    ):
         application.job_queue.run_repeating(
-            auto_drop_callback,
-            interval=max(30, AUTO_DROP_SECONDS),
-            first=15,
-            name="kushal_igcc_anime_auto_drop",
-        )
-        logger.info(
-            f"Auto anime drop scheduled every {max(30, AUTO_DROP_SECONDS)}s for @{ALLOWED_CHAT_USERNAME}"
+            auto_drop_loop_job,
+            interval=DROP_INTERVAL_SECONDS,
+            first=10,
+            name="kushal_igcc_50s_auto_drop",
         )
 
 
@@ -463,12 +518,11 @@ def main() -> None:
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
-    app.add_handler(CommandHandler("start", send_card_drop))
-    app.add_handler(CommandHandler("drop", send_card_drop))
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(on_button_click))
     app.add_error_handler(error_handler)
 
-    logger.info("24/7 Anime Card Drop Bot running for kushal_igcc_chats...")
+    logger.info("24/7 Anime Card Drop Bot (50s drop / 60s delete) started...")
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
