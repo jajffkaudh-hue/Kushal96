@@ -45,7 +45,7 @@ RENDER_EXTERNAL_URL = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/
 KEEP_ALIVE_INTERVAL = int(os.getenv("KEEP_ALIVE_INTERVAL", "240"))
 
 TARGET_GROUP_USERNAME = "kushal_igcc_chats"
-TARGET_GROUP_ID = int(os.getenv("ALLOWED_CHAT_ID", "0"))
+TARGET_GROUP_ID = int(os.getenv("ALLOWED_CHAT_ID", "6632236983"))
 CHANNEL_JOIN_URL = (
     os.getenv("CHANNEL_JOIN_URL")
     or os.getenv("GROUP_INVITE_URL")
