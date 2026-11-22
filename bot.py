@@ -40,18 +40,17 @@ PORT = int(os.getenv("PORT", "10000"))
 RENDER_EXTERNAL_URL = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
 KEEP_ALIVE_INTERVAL = int(os.getenv("KEEP_ALIVE_INTERVAL", "240"))
 
-# Sirf is group mein bot kaam karega: https://t.me/kushal_igcc_chats
-ALLOWED_CHAT_USERNAME = "kushal_igcc_chats"
-ALLOWED_CHAT_ID = int(os.getenv("ALLOWED_CHAT_ID", "0"))
-GROUP_INVITE_URL = (
-    os.getenv("GROUP_INVITE_URL") or f"https://t.me/{ALLOWED_CHAT_USERNAME}"
+TARGET_GROUP_USERNAME = "kushal_igcc_chats"
+TARGET_GROUP_ID = int(os.getenv("ALLOWED_CHAT_ID", "0"))
+CHANNEL_JOIN_URL = (
+    os.getenv("CHANNEL_JOIN_URL")
+    or os.getenv("GROUP_INVITE_URL")
+    or f"https://t.me/{TARGET_GROUP_USERNAME}"
 ).strip()
 
-# Exact timing: 40s drop, 60s (1 minute) delete
 AUTO_DROP_SECONDS = int(os.getenv("AUTO_DROP_SECONDS", "40"))
 DELETE_AFTER_SECONDS = int(os.getenv("DELETE_AFTER_SECONDS", "60"))
 
-# Har section ke liye Telegram Premium Emoji IDs (fallback sirf HTML tag text ke liye)
 PREMIUM_EMOJI_IDS: dict[str, tuple[str, str]] = {
     "header": ("5368324170671202286", "✦"),
     "user": ("5373012312141748804", "◈"),
@@ -65,24 +64,8 @@ PREMIUM_EMOJI_IDS: dict[str, tuple[str, str]] = {
     "zone": ("5373012312141748804", "❖"),
     "datetime": ("5258093637450866522", "◷"),
     "note": ("5206607081334906820", "✦"),
-    "drop_btn": ("5368324170671202286", "✦"),
-    "group_btn": ("5350363902611622471", "★"),
 }
 
-# Optional JSON override via env var PREMIUM_EMOJI_MAP_JSON='{"card":"1234567890123456"}'
-_custom_emoji_env = (os.getenv("PREMIUM_EMOJI_MAP_JSON") or "").strip()
-if _custom_emoji_env:
-    try:
-        parsed_map = json.loads(_custom_emoji_env)
-        if isinstance(parsed_map, dict):
-            for k, v in parsed_map.items():
-                if k in PREMIUM_EMOJI_IDS and str(v).strip().isdigit():
-                    _, fb = PREMIUM_EMOJI_IDS[k]
-                    PREMIUM_EMOJI_IDS[k] = (str(v).strip(), fb)
-    except Exception as e:
-        logger.warning(f"PREMIUM_EMOJI_MAP_JSON parse error: {e}")
-
-# AI Girl Image APIs + Fallback AI Girl URLs
 AI_GIRL_APIS = [
     "https://api.waifu.pics/sfw/waifu",
     "https://api.waifu.pics/sfw/neko",
@@ -96,8 +79,6 @@ FALLBACK_AI_GIRL_PHOTOS = [
     "https://i.waifu.pics/9X7mK2p.jpg",
 ]
 
-# 105 sample BIN entries across multiple countries & networks (for UI/testing)
-# Format: (bin_prefix, brand_type, issuer_origin, country, country_detail, timezone, zone)
 SAMPLE_BINS = [
     ("453201", "VISA", "HDFC Sample Bank", "India", "Republic of India (+91 / INR)", "Asia/Kolkata", "South Asia / IST"),
     ("453202", "VISA", "ICICI Sample Bank", "India", "Republic of India (+91 / INR)", "Asia/Kolkata", "South Asia / IST"),
@@ -208,7 +189,7 @@ SAMPLE_BINS = [
 SAMPLE_TEXTS = [
     "All Premium UG active • 105+ BIN pool • Auto drop every 40s • Delete in 60s.",
     "AI girl visual + separated card, expiry, CVV, date/time, country & zone sections.",
-    "Tap Drop for a new AI girl card drop or Group to open kushal_igcc_chats.",
+    "Group CC drop active for kushal_igcc_chats.",
 ]
 
 
@@ -222,7 +203,7 @@ def tg_pe(section_key: str) -> str:
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in ("/", "/health"):
-            body = b'{"status":"ok","bot":"all-premium-ug-ai-girl-drop"}'
+            body = b'{"status":"ok","bot":"cc-drop-active"}'
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -257,21 +238,6 @@ def start_24x7_server(port: int) -> None:
             args=(RENDER_EXTERNAL_URL, KEEP_ALIVE_INTERVAL),
             daemon=True,
         ).start()
-
-
-def is_allowed_chat(chat_id: int | None, username: str | None) -> bool:
-    if ALLOWED_CHAT_ID != 0 and chat_id == ALLOWED_CHAT_ID:
-        return True
-    if username and username.strip().lstrip("@").lower() == ALLOWED_CHAT_USERNAME:
-        return True
-    return False
-
-
-def is_allowed_update(update: Update) -> bool:
-    chat = update.effective_chat
-    if not chat:
-        return False
-    return is_allowed_chat(chat.id, chat.username)
 
 
 def _fetch_ai_girl_photo_sync() -> str:
@@ -332,41 +298,8 @@ def generate_random_card() -> dict[str, str]:
         now_local = datetime.now()
 
     return {
-        "bin": bin_prefix,
-        "brand": brand,
-        "origin": origin,
-        "number": card_number,
-        "expiry": f"{month}/{year}",
-        "cvv": cvv,
-        "date": now_local.strftime("%d-%m-%Y"),
-        "time": now_local.strftime("%I:%M:%S %p"),
-        "country": country,
-        "country_detail": country_detail,
-        "zone": zone,
-        "note": random.choice(SAMPLE_TEXTS),
-    }
-
-
-def build_drop_group_keyboard() -> InlineKeyboardMarkup:
-    _, drop_fb = PREMIUM_EMOJI_IDS["drop_btn"]
-    _, group_fb = PREMIUM_EMOJI_IDS["group_btn"]
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    text=f"{drop_fb} Drop",
-                    callback_data="manual_drop",
-                ),
-                InlineKeyboardButton(
-                    text=f"{group_fb} Group",
-                    url=GROUP_INVITE_URL,
-                ),
-            ]
-        ]
-    )
-
-
-def format_card_caption(user_mention: str, card: dict[str, str]) -> str:
+        "bin": bin_pr
+        def format_cc_drop_caption(user_mention: str, card: dict[str, str]) -> str:
     pe_hdr = tg_pe("header")
     pe_usr = tg_pe("user")
     pe_ug = tg_pe("ug")
@@ -381,7 +314,7 @@ def format_card_caption(user_mention: str, card: dict[str, str]) -> str:
     pe_nt = tg_pe("note")
 
     return (
-        f"{pe_hdr} <b>ALL PREMIUM UG • {html.escape(card['brand'])}</b> {pe_hdr}\n\n"
+        f"{pe_hdr} <b>CC DROP • {html.escape(card['brand'])}</b> {pe_hdr}\n\n"
         f"{pe_usr} <b>User:</b> {user_mention}\n"
         f"{pe_ug} <b>UG Tier:</b> <code>ALL PREMIUM UG</code>\n\n"
         f"{pe_crd} <b>[CARD NUMBER]</b>\n"
@@ -432,28 +365,27 @@ def schedule_delete(
         )
 
 
-async def resolve_group_chat_id(bot) -> int | str | None:
-    if ALLOWED_CHAT_ID != 0:
-        return ALLOWED_CHAT_ID
+async def resolve_target_group_id(bot) -> int | str | None:
+    if TARGET_GROUP_ID != 0:
+        return TARGET_GROUP_ID
     try:
-        chat = await bot.get_chat(f"@{ALLOWED_CHAT_USERNAME}")
+        chat = await bot.get_chat(f"@{TARGET_GROUP_USERNAME}")
         return chat.id
     except Exception as e:
-        logger.debug(f"Could not resolve @{ALLOWED_CHAT_USERNAME}: {e}")
-        return None
+        logger.debug(f"Could not resolve @{TARGET_GROUP_USERNAME}: {e}")
+        return f"@{TARGET_GROUP_USERNAME}"
 
 
-async def send_group_drop_message(
+async def send_photo_with_caption_and_buttons(
     bot,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int | str,
-    user_mention: str,
+    photo_url: str,
+    caption: str,
+    auto_delete: bool = False,
 ) -> None:
-    card = generate_random_card()
-    caption = format_card_caption(user_mention, card)
-    photo_url = await get_ai_girl_photo_url()
-    markup = build_drop_group_keyboard()
-
+    # Order: Pehle Photo -> Uske neeche Text/CC Drop -> Uske neeche Donon Blue Buttons
+    markup = build_blue_action_buttons()
     msg = None
     try:
         msg = await bot.send_photo(
@@ -464,7 +396,7 @@ async def send_group_drop_message(
             reply_markup=markup,
         )
     except Exception as e:
-        logger.warning(f"AI girl photo send fallback ({photo_url}): {e}")
+        logger.warning(f"Photo send fallback ({photo_url}): {e}")
         msg = await bot.send_message(
             chat_id=chat_id,
             text=caption,
@@ -473,36 +405,74 @@ async def send_group_drop_message(
             disable_web_page_preview=True,
         )
 
-    if msg:
+    if msg and auto_delete:
         schedule_delete(context, chat_id, msg.message_id)
 
 
-async def auto_drop_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    target_chat_id = await resolve_group_chat_id(context.bot)
-    if target_chat_id is None:
+async def auto_group_cc_drop_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.bot_data.get("group_auto_cc_drop_enabled", True):
         return
-    auto_mention = f'<a href="{html.escape(GROUP_INVITE_URL)}">ALL PREMIUM UG</a>'
+    group_id = await resolve_target_group_id(context.bot)
+    if group_id is None:
+        return
+    card = generate_random_card()
+    photo_url = await get_ai_girl_photo_url()
+    mention = f'<a href="{html.escape(CHANNEL_JOIN_URL)}">ALL PREMIUM UG</a>'
+    caption = format_cc_drop_caption(mention, card)
     try:
-        await send_group_drop_message(
-            context.bot, context, target_chat_id, auto_mention
+        await send_photo_with_caption_and_buttons(
+            context.bot,
+            context,
+            group_id,
+            photo_url,
+            caption,
+            auto_delete=True,
         )
     except Exception as e:
-        logger.warning(f"Auto drop failed: {e}")
+        logger.warning(f"Group auto CC drop failed: {e}")
+
+
+def ensure_group_auto_drop_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.bot_data["group_auto_cc_drop_enabled"] = True
+    if not context.job_queue:
+        return
+    if not context.job_queue.get_jobs_by_name("kushal_group_cc_drop_loop"):
+        context.job_queue.run_repeating(
+            auto_group_cc_drop_job,
+            interval=max(10, AUTO_DROP_SECONDS),
+            first=5,
+            name="kushal_group_cc_drop_loop",
+        )
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_user or not update.effective_chat:
         return
 
-    if not is_allowed_update(update):
-        return
-
     user = update.effective_user
     safe_name = html.escape(user.first_name or "User")
     mention = f'<a href="tg://user?id={user.id}">{safe_name}</a>'
 
-    await send_group_drop_message(
-        context.bot, context, update.effective_chat.id, mention
+    pe_hdr = tg_pe("header")
+    pe_usr = tg_pe("user")
+    pe_ug = tg_pe("ug")
+
+    photo_url = await get_ai_girl_photo_url()
+    start_text = (
+        f"{pe_hdr} <b>WELCOME TO CC DROP BOT</b> {pe_hdr}\n\n"
+        f"{pe_usr} <b>User:</b> {mention}\n"
+        f"{pe_ug} <b>UG Tier:</b> <code>ALL PREMIUM UG</code>\n\n"
+        f"Neeche <b>Channel Join</b> ya <b>CC Drop</b> button par click karein. "
+        f"<b>CC Drop</b> dabane par group mein automatic CC drop shuru ho jayega."
+    )
+
+    await send_photo_with_caption_and_buttons(
+        context.bot,
+        context,
+        update.effective_chat.id,
+        photo_url,
+        start_text,
+        auto_delete=False,
     )
 
 
@@ -511,23 +481,29 @@ async def on_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not query or not query.message or not query.from_user:
         return
 
-    if not is_allowed_update(update):
-        await query.answer("Sirf group mein kaam karega.", show_alert=True)
-        return
-
-    await query.answer()
+    await query.answer("Group CC Drop active!")
     caller = query.from_user
     safe_name = html.escape(caller.first_name or "User")
     mention = f'<a href="tg://user?id={caller.id}">{safe_name}</a>'
 
-    if query.data == "manual_drop":
-        try:
-            await query.edit_message_reply_markup(reply_markup=None)
-        except Exception:
-            pass
-        await send_group_drop_message(
-            context.bot, context, query.message.chat.id, mention
-        )
+    if query.data == "trigger_cc_drop":
+        ensure_group_auto_drop_job(context)
+        group_id = await resolve_target_group_id(context.bot)
+        if group_id is not None:
+            card = generate_random_card()
+            photo_url = await get_ai_girl_photo_url()
+            caption = format_cc_drop_caption(mention, card)
+            try:
+                await send_photo_with_caption_and_buttons(
+                    context.bot,
+                    context,
+                    group_id,
+                    photo_url,
+                    caption,
+                    auto_delete=True,
+                )
+            except Exception as e:
+                logger.warning(f"CC drop button group send failed: {e}")
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -535,7 +511,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def post_init(application: Application) -> None:
-    start_cmd = [BotCommand("start", "Start drop menu")]
+    application.bot_data["group_auto_cc_drop_enabled"] = True
+    start_cmd = [BotCommand("start", "Start CC drop bot")]
     for scope in (
         BotCommandScopeDefault(),
         BotCommandScopeAllGroupChats(),
@@ -547,16 +524,13 @@ async def post_init(application: Application) -> None:
             logger.debug(f"Command scope skipped ({scope}): {e}")
 
     if application.job_queue and not application.job_queue.get_jobs_by_name(
-        "group_auto_drop_job"
+        "kushal_group_cc_drop_loop"
     ):
         application.job_queue.run_repeating(
-            auto_drop_job,
+            auto_group_cc_drop_job,
             interval=max(10, AUTO_DROP_SECONDS),
-            first=10,
-            name="group_auto_drop_job",
-        )
-        logger.info(
-            f"Auto drop scheduled every {max(10, AUTO_DROP_SECONDS)}s (delete after {DELETE_AFTER_SECONDS}s) for @{ALLOWED_CHAT_USERNAME}"
+            first=15,
+            name="kushal_group_cc_drop_loop",
         )
 
 
@@ -573,9 +547,10 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(on_button_click))
     app.add_error_handler(error_handler)
 
-    logger.info("All Premium UG + AI Girl + 105-BIN 40s/60s Bot running...")
+    logger.info("50-50 Split CC Drop Bot running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":
     main()
+    
