@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = (
     os.getenv("BOT_TOKEN")
-    or "8635335052:AAHKw190Qhft0s4eTwmimwVZjgkueiysyeI"
+    or "8956223424:AAHHWlwOx9R1-demq-B7C4cswMuGPaJnxG8"
 ).strip()
 PORT = int(os.getenv("PORT", "10000"))
 
