@@ -355,7 +355,7 @@ def format_cc_drop_text(card: dict[str, str]) -> str:
         f"{iss_e} <b>𝐈𝐬𝐬𝐮𝐞𝐫:</b> <b>{html.escape(card['issuer'])}</b>\n\n"
         f"{cnt_e} <b>𝐂𝐨𝐮𝐧𝐭𝐫𝐲:</b> <b>{html.escape(card['country'])}</b>\n\n"
         f"{tz_e} <b>Time zone:</b> <code>{html.escape(card['timezone'])}</code>\n\n"
-        f"{dev_e} <b>Dev:</b> @RAHU_LKING89\n\n"
+        f"{dev_e} <b>Dev:</b> \n\n"
         f"────────────────────────"
     )
 
